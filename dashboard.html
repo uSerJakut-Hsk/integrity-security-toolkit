@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Integrity Checker Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass-effect { backdrop-filter: blur(16px) saturate(180%); background-color: rgba(255, 255, 255, 0.75); border: 1px solid rgba(209, 213, 219, 0.3); }
+        .hover-scale { transition: transform 0.2s; }
+        .hover-scale:hover { transform: scale(1.02); }
+        .pulse-ring { animation: pulse-ring 1.25s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        @keyframes pulse-ring { 0% { transform: scale(0.33); } 40%, 50% { opacity: 0; } 100% { opacity: 0; transform: scale(1.33); } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-blue-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="glass-effect shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-shield-alt text-2xl text-blue-600 mr-3"></i>
+                        <h1 class="text-xl font-bold text-gray-900">File Integrity Checker</h1>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                    <button onclick="exportReport()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors duration-200">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Status Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="glass-effect rounded-xl p-6 hover-scale">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-files-o text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Files</p>
+                        <p id="totalFiles" class="text-2xl font-semibold text-gray-900">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-effect rounded-xl p-6 hover-scale">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Intact</p>
+                        <p id="intactFiles" class="text-2xl font-semibold text-green-600">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-effect rounded-xl p-6 hover-scale">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center relative">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                            <div id="modifiedAlert" class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full pulse-ring hidden"></div>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Modified</p>
+                        <p id="modifiedFiles" class="text-2xl font-semibold text-red-600">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-effect rounded-xl p-6 hover-scale">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-question-circle text-yellow-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Missing</p>
+                        <p id="missingFiles" class="text-2xl font-semibold text-yellow-600">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="glass-effect rounded-xl p-6 mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button onclick="addFile()" class="flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">
+                    <i class="fas fa-plus mr-2"></i>Add File to Monitor
+                </button>
+                <button onclick="scanDirectory()" class="flex items-center justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200">
+                    <i class="fas fa-search mr-2"></i>Scan Directory
+                </button>
+                <button onclick="runFullCheck()" class="flex items-center justify-center px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200">
+                    <i class="fas fa-shield-alt mr-2"></i>Run Full Check
+                </button>
+            </div>
+        </div>
+
+        <!-- File List -->
+        <div class="glass-effect rounded-xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-semibold text-gray-900">Monitored Files</h2>
+                <div class="flex items-center space-x-4">
+                    <select id="filterStatus" onchange="filterFiles()" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="all">All Files</option>
+                        <option value="unchanged">Intact</option>
+                        <option value="modified">Modified</option>
+                        <option value="missing">Missing</option>
+                    </select>
+                    <input type="text" id="searchFiles" onkeyup="searchFiles()" placeholder="Search files..." class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Path</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Algorithm</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Check</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Dynamic content will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Details Modal -->
+    <div id="fileDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">File Details</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div id="fileDetailsContent">
+                    <!-- Details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Panel -->
+    <div id="logPanel" class="fixed bottom-4 right-4 w-96 bg-white rounded-lg shadow-lg border hidden">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-sm font-medium text-gray-900">Activity Log</h3>
+            <button onclick="toggleLogPanel()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="logContent" class="px-4 py-3 max-h-64 overflow-y-auto text-sm">
+            <!-- Log entries will be added here -->
+        </div>
+    </div>
+
+    <!-- Log Toggle Button -->
+    <button onclick="toggleLogPanel()" class="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-colors duration-200">
+        <i class="fas fa-list"></i>
+    </button>
+
+    <script>
+        let mockData = {
+            files: {
+                '/etc/passwd': { status: 'unchanged', algorithm: 'sha256', last_check: '2024-01-15T10:30:00', hash: 'abc123...', message: 'File integrity verified' },
+                '/etc/shadow': { status: 'unchanged', algorithm: 'sha256', last_check: '2024-01-15T10:30:00', hash: 'def456...', message: 'File integrity verified' },
+                '/home/user/important.txt': { status: 'modified', algorithm: 'sha256', last_check: '2024-01-15T10:30:00', original_hash: 'ghi789...', current_hash: 'jkl012...', message: 'File has been modified' },
+                '/var/log/auth.log': { status: 'missing', algorithm: 'md5', last_check: '2024-01-15T10:30:00', message: 'File is missing' }
+            }
+        };
+
+        let filteredData = mockData.files;
+        let logEntries = [
+            { time: '10:30:15', message: 'Started integrity check', type: 'info' },
+            { time: '10:30:20', message: 'File /home/user/important.txt has been modified', type: 'warning' },
+            { time: '10:30:25', message: 'Integrity check completed', type: 'info' }
+        ];
+
+        function updateDashboard() {
+            const files = Object.values(mockData.files);
+            const totalFiles = files.length;
+            const intactFiles = files.filter(f => f.status === 'unchanged').length;
+            const modifiedFiles = files.filter(f => f.status === 'modified').length;
+            const missingFiles = files.filter(f => f.status === 'missing').length;
+
+            document.getElementById('totalFiles').textContent = totalFiles;
+            document.getElementById('intactFiles').textContent = intactFiles;
+            document.getElementById('modifiedFiles').textContent = modifiedFiles;
+            document.getElementById('missingFiles').textContent = missingFiles;
+
+            // Show alert if files are modified
+            const alertElement = document.getElementById('modifiedAlert');
+            if (modifiedFiles > 0) {
+                alertElement.classList.remove('hidden');
+            } else {
+                alertElement.classList.add('hidden');
+            }
+
+            updateFileTable();
+            updateLogPanel();
+        }
+
+        function updateFileTable() {
+            const tbody = document.getElementById('fileTableBody');
+            tbody.innerHTML = '';
+
+            Object.entries(filteredData).forEach(([filePath, fileData]) => {
+                const row = createFileRow(filePath, fileData);
+                tbody.appendChild(row);
+            });
+        }
+
+        function createFileRow(filePath, fileData) {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+
+            const statusClass = {
+                'unchanged': 'text-green-600 bg-green-100',
+                'modified': 'text-red-600 bg-red-100',
+                'missing': 'text-yellow-600 bg-yellow-100',
+                'error': 'text-gray-600 bg-gray-100'
+            };
+
+            const statusIcon = {
+                'unchanged': 'fas fa-check-circle',
+                'modified': 'fas fa-exclamation-triangle',
+                'missing': 'fas fa-question-circle',
+                'error': 'fas fa-times-circle'
+            };
+
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-8 w-8">
+                            <i class="fas fa-file text-gray-400"></i>
+                        </div>
+                        <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">${filePath}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass[fileData.status] || 'text-gray-600 bg-gray-100'}">
+                        <i class="${statusIcon[fileData.status] || 'fas fa-question'} mr-1"></i>
+                        ${fileData.status.toUpperCase()}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${fileData.algorithm ? fileData.algorithm.toUpperCase() : 'N/A'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${fileData.last_check ? new Date(fileData.last_check).toLocaleString() : 'Never'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    <button onclick="checkFile('${filePath}')" class="text-blue-600 hover:text-blue-900">
+                        <i class="fas fa-sync-alt mr-1"></i>Check
+                    </button>
+                    <button onclick="showFileDetails('${filePath}')" class="text-indigo-600 hover:text-indigo-900">
+                        <i class="fas fa-info-circle mr-1"></i>Details
+                    </button>
+                    <button onclick="removeFile('${filePath}')" class="text-red-600 hover:text-red-900">
+                        <i class="fas fa-trash mr-1"></i>Remove
+                    </button>
+                </td>
+            `;
+
+            return row;
+        }
+
+        function filterFiles() {
+            const filterValue = document.getElementById('filterStatus').value;
+            
+            if (filterValue === 'all') {
+                filteredData = mockData.files;
+            } else {
+                filteredData = Object.fromEntries(
+                    Object.entries(mockData.files).filter(([path, data]) => data.status === filterValue)
+                );
+            }
+            
+            updateFileTable();
+        }
+
+        function searchFiles() {
+            const searchTerm = document.getElementById('searchFiles').value.toLowerCase();
+            const filterValue = document.getElementById('filterStatus').value;
+            
+            let baseData = filterValue === 'all' ? mockData.files : 
+                Object.fromEntries(Object.entries(mockData.files).filter(([path, data]) => data.status === filterValue));
+            
+            if (searchTerm) {
+                filteredData = Object.fromEntries(
+                    Object.entries(baseData).filter(([path, data]) => 
+                        path.toLowerCase().includes(searchTerm)
+                    )
+                );
+            } else {
+                filteredData = baseData;
+            }
+            
+            updateFileTable();
+        }
+
+        function showFileDetails(filePath) {
+            const fileData = mockData.files[filePath];
+            if (!fileData) return;
+
+            let detailsHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">File Path</label>
+                        <p class="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded">${filePath}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Status</label>
+                        <p class="mt-1 text-sm text-gray-900">${fileData.status}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Message</label>
+                        <p class="mt-1 text-sm text-gray-900">${fileData.message}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Algorithm</label>
+                        <p class="mt-1 text-sm text-gray-900">${fileData.algorithm ? fileData.algorithm.toUpperCase() : 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Last Check</label>
+                        <p class="mt-1 text-sm text-gray-900">${fileData.last_check ? new Date(fileData.last_check).toLocaleString() : 'Never'}</p>
+                    </div>
+            `;
+
+            if (fileData.status === 'modified') {
+                detailsHTML += `
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Original Hash</label>
+                        <p class="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded font-mono">${fileData.original_hash}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Current Hash</label>
+                        <p class="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded font-mono">${fileData.current_hash}</p>
+                    </div>
+                `;
+            } else if (fileData.hash) {
+                detailsHTML += `
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Hash</label>
+                        <p class="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded font-mono">${fileData.hash}</p>
+                    </div>
+                `;
+            }
+
+            detailsHTML += '</div>';
+
+            document.getElementById('fileDetailsContent').innerHTML = detailsHTML;
+            document.getElementById('fileDetailsModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('fileDetailsModal').classList.add('hidden');
+        }
+
+        function toggleLogPanel() {
+            const logPanel = document.getElementById('logPanel');
+            logPanel.classList.toggle('hidden');
+        }
+
+        function updateLogPanel() {
+            const logContent = document.getElementById('logContent');
+            logContent.innerHTML = logEntries.map(entry => {
+                const typeClass = {
+                    'info': 'text-blue-600',
+                    'warning': 'text-yellow-600',
+                    'error': 'text-red-600',
+                    'success': 'text-green-600'
+                };
+
+                return `
+                    <div class="flex items-start space-x-2 mb-2">
+                        <span class="text-xs text-gray-500 mt-0.5">${entry.time}</span>
+                        <span class="text-xs ${typeClass[entry.type] || 'text-gray-600'}">${entry.message}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addLogEntry(message, type = 'info') {
+            const now = new Date();
+            const time = now.toTimeString().split(' ')[0];
+            logEntries.unshift({ time, message, type });
+            if (logEntries.length > 50) logEntries.pop();
+            updateLogPanel();
+        }
+
+        // Action Functions
+        function refreshData() {
+            addLogEntry('Refreshing data...', 'info');
+            // Simulate API call
+            setTimeout(() => {
+                addLogEntry('Data refreshed successfully', 'success');
+                updateDashboard();
+            }, 1000);
+        }
+
+        function addFile() {
+            const filePath = prompt('Enter file path to monitor:');
+            if (filePath && filePath.trim()) {
+                mockData.files[filePath.trim()] = {
+                    status: 'unchanged',
+                    algorithm: 'sha256',
+                    last_check: new Date().toISOString(),
+                    hash: 'new123...',
+                    message: 'File integrity verified'
+                };
+                addLogEntry(`Added file to monitoring: ${filePath.trim()}`, 'success');
+                updateDashboard();
+            }
+        }
+
+        function scanDirectory() {
+            const dirPath = prompt('Enter directory path to scan:');
+            if (dirPath && dirPath.trim()) {
+                addLogEntry(`Scanning directory: ${dirPath.trim()}`, 'info');
+                setTimeout(() => {
+                    addLogEntry('Directory scan completed', 'success');
+                }, 2000);
+            }
+        }
+
+        function runFullCheck() {
+            addLogEntry('Starting full integrity check...', 'info');
+            let checked = 0;
+            const total = Object.keys(mockData.files).length;
+            
+            const checkInterval = setInterval(() => {
+                checked++;
+                addLogEntry(`Checking file ${checked}/${total}`, 'info');
+                
+                if (checked >= total) {
+                    clearInterval(checkInterval);
+                    addLogEntry('Full integrity check completed', 'success');
+                    updateDashboard();
+                }
+            }, 500);
+        }
+
+        function checkFile(filePath) {
+            addLogEntry(`Checking file: ${filePath}`, 'info');
+            setTimeout(() => {
+                const fileData = mockData.files[filePath];
+                if (fileData) {
+                    fileData.last_check = new Date().toISOString();
+                    addLogEntry(`File check completed: ${filePath}`, 'success');
+                    updateDashboard();
+                }
+            }, 1000);
+        }
+
+        function removeFile(filePath) {
+            if (confirm(`Are you sure you want to remove ${filePath} from monitoring?`)) {
+                delete mockData.files[filePath];
+                addLogEntry(`Removed file from monitoring: ${filePath}`, 'info');
+                updateDashboard();
+            }
+        }
+
+        function exportReport() {
+            addLogEntry('Generating integrity report...', 'info');
+            setTimeout(() => {
+                const report = {
+                    timestamp: new Date().toISOString(),
+                    summary: {
+                        total: Object.keys(mockData.files).length,
+                        intact: Object.values(mockData.files).filter(f => f.status === 'unchanged').length,
+                        modified: Object.values(mockData.files).filter(f => f.status === 'modified').length,
+                        missing: Object.values(mockData.files).filter(f => f.status === 'missing').length
+                    },
+                    files: mockData.files
+                };
+                
+                const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `integrity_report_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                addLogEntry('Report exported successfully', 'success');
+            }, 1000);
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDashboard();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(refreshData, 30000);
+        });
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('fileDetailsModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>

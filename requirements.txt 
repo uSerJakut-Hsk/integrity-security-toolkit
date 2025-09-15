@@ -1,0 +1,9 @@
+# requirements.txt
+hashlib
+json
+datetime
+argparse
+pathlib
+logging
+os
+sys
